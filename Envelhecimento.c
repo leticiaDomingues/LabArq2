@@ -9,11 +9,13 @@ int main(int argc, char *argv[]) {
     double cpu_time_used;
     char filetype[256], *ptri, *ptro, *img;
     char r, g, b;
-    int width, height, depth, pixels;
+    int width, height, depth, pixels, i;
+    int rn = rand() % 40; // ruido
+    FILE *fp = fopen(argv[1], "r"); // leitura do arquivo passado com nome no prompt
 
     srand((unsigned)time(NULL)); // para valores randomicos
     
-    FILE *fp = fopen(argv[1], "r"); // leitura do arquivo passado com nome no prompt
+
 
     fscanf(fp, "%s\n", filetype);
     fprintf(stdout, "%s\n", filetype);
@@ -26,14 +28,14 @@ int main(int argc, char *argv[]) {
 
     fread(img, 3, pixels, fp);
         
-    int i = 0;
+    
     start = clock();
     for (i = 0; i < pixels; i++) {
         r = *ptri++; // não pode ser int ou a conta não funciona adequadamente e a conversão para char borra completamente a imagem
         g = *ptri++;
         b = *ptri++;
 
-        int rn = rand() % 40; // ruido
+
        
        __asm {
                 movzx eax, r
@@ -52,9 +54,12 @@ int main(int argc, char *argv[]) {
           skip: mov ebx, eax
                 mov ecx, eax
 
+			 shr ecx, 1 // torna a imagem amarelada
+
                 mov r, al
                 mov g, bl
-                mov b, cl
+                mov b, cl		 
+
         }
 
          *ptro++ = r;
