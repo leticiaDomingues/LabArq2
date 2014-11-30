@@ -2,7 +2,6 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /* Corpo de leitura do arquivo adaptado do arquivo filtro_windows.c no repositório. */
 int main(int argc, char *argv[]) {
@@ -11,13 +10,13 @@ int main(int argc, char *argv[]) {
     char filetype[256], *ptri, *ptro, *img;
     char r, g, b;
     int width, height, depth, pixels, i;
-    int rn ; // ruido
+
     FILE *fp = fopen(argv[1], "rb"); // leitura do arquivo passado com nome no prompt
+
+    int rn; // ruido
 
     srand((unsigned)time(NULL)); // para valores randomicos
     
-
-
     fscanf(fp, "%s\n", filetype);
     fprintf(stdout, "%s\n", filetype);
 
@@ -29,63 +28,42 @@ int main(int argc, char *argv[]) {
 
     fread(img, 3, pixels, fp);
         
-    
-    start = clock();
-    
-    for (i = 0; i < pixels; i++) {
+    start = clock();    
+    for (i = 0; i < pixels; i++) 
+    {
         r = *ptri++; // não pode ser int ou a conta não funciona adequadamente e a conversão para char borra completamente a imagem
         g = *ptri++;
         b = *ptri++;
-	   rn = rand() % 30;
-
-       
+	   rn = rand() % 40;
+               
        __asm {
                 movzx eax, r
                 movzx ebx, g
                 movzx ecx, b
-                                
-                shl ebx, 1 // g *= 2
-                add eax, ebx
-                add eax, ecx // r = r + g + b
-                shr eax, 2 // r /= 4
 
-                cmp al, 40 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
-                jb skip
-                sub eax, rn
-                
-          skip: mov ebx, eax
-                mov ecx, eax
+                xchg ecx, eax
 
-			 mov edx, 2
-			 mul edx
 			 mov esi, 3
-			 mov edx, 0
-			 div esi
+			 mul esi
+                shr eax, 2
 
-			 xchg ebx, eax
-
-			 shr ecx, 1 // torna a imagem avermelhada
-			 shr ecx, 1 // torna a imagem amarelada
-
-			 cmp al, 40 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
+                xchg ecx, eax
+                
+			 cmp al, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
                 jb skip1
                 sub eax, rn
 
-	
-	skip1:	 cmp bl, 40 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
+	skip1:	 cmp bl, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
                 jb skip2
                 sub ebx, rn
 
-	
-	skip2:	 cmp cl, 40 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
+	skip2:	 cmp cl, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
                 jb skip3
                 sub ecx, rn
 
-      
 	skip3:     mov r, al
                 mov g, bl
-                mov b, cl		 
-
+                mov b, cl
         }
 
          *ptro++ = r;
@@ -98,6 +76,8 @@ int main(int argc, char *argv[]) {
     fwrite(img, 3, pixels, stdout);
 
     free(img);
+
+    fclose(fp);
 
     cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
     fprintf(stderr, "tempo = %f segundos\n", cpu_time_used);
