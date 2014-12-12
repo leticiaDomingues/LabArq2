@@ -16,11 +16,17 @@ int main(int argc, char *argv[])
     char limit[SIMD_SIZE];
     int width, height, depth, pixels, i;
     int rn[(SIMD_SIZE/3) + 1]; // ruido
-    char mult[] = { 1, 1, 3, 1, 1, 3, 1, 1 };
-    char divs[] = { 0, 0, 1, 0, 0, 1, 0, 0 };
+	char mult[24] = {
+		1, 1, 3, 1, 1, 3, 1, 1,
+		1, 3, 1, 1, 3, 1, 1, 3,
+		3, 1, 1, 3, 1, 1, 3, 1 };
 
-    char clear[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	char *m = mult;
+	
+	char clear[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
+	char xorFix[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80 };
 
+		
     FILE *fp;
     FILE *fo;
  
@@ -73,63 +79,77 @@ int main(int argc, char *argv[])
         for (int j = 0; j < SIMD_SIZE; j++)
             rnds[j] = rn[j / 3];
 
+		int resto = i % 3;
+		
         __asm {
-                emms
-                mov esi, ptri
-                mov edi, ptro
+			emms
+				mov esi, ptri
+				mov edi, ptro
+
+				cmp i, 0
+				jne skip
+				movq mm2, limit
+				movq mm5, xorFix
+				movq mm7, clear
+
+				mov eax, m
+				movlpd xmm5, [eax]
+				movlpd xmm6, [eax + 16]
+				movlpd xmm7, [eax + 8]
+
+				pxor mm2, mm5
+
+		skip :  cmp resto, 2
+				jne skip2
+				movdq2q mm6, xmm7
+				jmp read
+
+		skip2:  cmp resto, 1
+				jne skip3
+				movdq2q mm6, xmm6
+				jmp read
+
+		skip3:  movdq2q mm6, xmm5				
+				
+		read:   movq mm0, [esi]
+                movq mm1, rnds             
+				movq mm3, mm0
                 
-                movq mm0, [esi]
-                movq mm1, rnds
-                movq mm2, limit                
-                movq mm3, mm0
-                
+				pxor mm3, mm5
+
                 pcmpgtb mm3, mm2
                 pand mm3, mm1
-                paddb mm0, mm3
+                psubb mm0, mm3
 
                 movq2dq mm0, xmm0
-
                 punpcklbw xmm0, xmm4
-
-                cmp i, 0
-                jne skip
-                movq mm2, mult
-                movq mm3, divs
-                movlpd xmm5, clear
-                movhpd xmm5, clear
-
-            skip:
-                movq2dq xmm2, mm2
-                movq2dq xmm3, mm3
+				
+                movq2dq xmm2, mm6
                 punpcklbw xmm2, xmm4
-                punpcklbw xmm3, xmm4
 
                 pmullw xmm0, xmm2
-                
-                movdqa xmm1, xmm0
-                psrlw xmm1, 2
-                
+
+				/*movdqa xmm5, xmm0
+				psrlw xmm5, 2
+
+				movq2dq xmm1, mm7
+				punpcklbw xmm1, xmm4
+
+				movdqa xmm3, xmm1
                 pcmpgtw xmm3, xmm4
-                
-                pxor xmm5, xmm3
-                pand xmm3, xmm1
-                pand xmm5, xmm0
-                por xmm5, xmm3
 
-                movq mm5, mm2 // Rotate do vetor de multiplicação em 1 byte
-                pslld mm2, 8
-                psrld mm5, 24
-                por mm2, mm5
+				pcmpgtw xmm2, xmm1
                 
-                movq mm5, mm3 // Rotate do vetor de divisão em 1 byte
-                pslld mm3, 8
-                psrld mm5, 24
-                por mm3, mm5
+                pxor xmm3, xmm2
+				pand xmm2, xmm5
+				pand xmm3, xmm0
+				por xmm3, xmm2
                                 
-                packuswb xmm5, xmm4
-
-                movlpd [edi], xmm5
-        }
+                packuswb xmm3, xmm4
+                movlpd [edi], xmm3*/
+				packuswb xmm0, xmm4
+				movlpd[edi], xmm0
+		}
 
         ptri += SIMD_SIZE;
         ptro += SIMD_SIZE;
