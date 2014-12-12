@@ -14,18 +14,17 @@ int main(int argc, char *argv[])
     char filetype[256], *ptri, *ptro, *img;
     char rnds[SIMD_SIZE];
     char limit[SIMD_SIZE];
-    int width, height, depth, pixels, i;
-    int rn[(SIMD_SIZE/3) + 1]; // ruido
+    int width, height, depth, pixels, i, j, k, n, resto, siz, rnd;
+
 	char mult[24] = {
 		1, 1, 3, 1, 1, 3, 1, 1,
-		1, 3, 1, 1, 3, 1, 1, 3,
-		3, 1, 1, 3, 1, 1, 3, 1 };
+		3, 1, 1, 3, 1, 1, 3, 1,
+		1, 3, 1, 1, 3, 1, 1, 3 };
 
 	char *m = mult;
 	
 	char clear[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
 	char xorFix[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80 };
-
 		
     FILE *fp;
     FILE *fo;
@@ -60,7 +59,7 @@ int main(int argc, char *argv[])
 
     pixels = width * height;
     
-    int siz = (pixels * 3) + (SIMD_SIZE - ((3 * pixels) % SIMD_SIZE));
+    siz = (pixels * 3) + (SIMD_SIZE - ((3 * pixels) % SIMD_SIZE));
 
     ptri = ptro = img = (char *)malloc(siz);
 
@@ -68,21 +67,23 @@ int main(int argc, char *argv[])
     
     start = clock();
 
-    for (int j = 0; j < SIMD_SIZE; j++)
+    for (j = 0; j < SIMD_SIZE; j++)
         limit[j] = RND_LIMIT;
 
     for (i = 0; i < (siz / SIMD_SIZE); i++)
     {
-        for (int j = 0; j < (SIMD_SIZE / 3) + 1; j++)
-            rn[j] = rand() % 40;
-        
-        for (int j = 0; j < SIMD_SIZE; j++)
-            rnds[j] = rn[j / 3];
+		k = 0;
+		for (j = 0; j < (SIMD_SIZE/3) + 1; j++)
+		{
+			rnd = rand() % 40;			
+			for (n = 0; n < 3 && k < SIMD_SIZE; n++)
+				rnds[k++] = rnd;
+		}
 
-		int resto = i % 3;
+		resto = i % 3;
 		
         __asm {
-			emms
+				emms
 				mov esi, ptri
 				mov edi, ptro
 
@@ -94,8 +95,8 @@ int main(int argc, char *argv[])
 
 				mov eax, m
 				movlpd xmm5, [eax]
-				movlpd xmm6, [eax + 16]
-				movlpd xmm7, [eax + 8]
+				movlpd xmm6, [eax + 8]
+				movlpd xmm7, [eax + 16]
 
 				pxor mm2, mm5
 
@@ -129,26 +130,22 @@ int main(int argc, char *argv[])
 
                 pmullw xmm0, xmm2
 
-				/*movdqa xmm5, xmm0
-				psrlw xmm5, 2
+				movdqa xmm1, xmm0  // copia x0 em x1
+				psrlw xmm1, 2 // faz divisão dos bytes por 4
+				
+				movq2dq xmm3, mm7 // move o vetor clear (composto por 1s para x3)
+				punpcklbw xmm3, xmm4
+				pcmpgtw xmm2, xmm3 // marca em x2 quais as words cujo multiplicador é maior que 1 (quais são as posições azuis)
 
-				movq2dq xmm1, mm7
-				punpcklbw xmm1, xmm4
-
-				movdqa xmm3, xmm1
-                pcmpgtw xmm3, xmm4
-
-				pcmpgtw xmm2, xmm1
+                pcmpgtw xmm3, xmm4 // faz x3 todo igual a FF
                 
-                pxor xmm3, xmm2
-				pand xmm2, xmm5
-				pand xmm3, xmm0
-				por xmm3, xmm2
+                pxor xmm3, xmm2 // faz as words de x3 que tem posição do azul serem 0
+				pand xmm2, xmm1 // copia os 2 ou 3 bytes azuis para x2
+				pand xmm3, xmm0 // copia os demais bytes para x3, deixando os bytes azuis como 0
+				por xmm3, xmm2 // junta os bytes em x3, resultando em todos os bytes sem shift, exceto por aqueles marcados nas posições azuis
                                 
                 packuswb xmm3, xmm4
-                movlpd [edi], xmm3*/
-				packuswb xmm0, xmm4
-				movlpd[edi], xmm0
+                movlpd [edi], xmm3
 		}
 
         ptri += SIMD_SIZE;
