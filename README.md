@@ -52,4 +52,5 @@ Tempo versão sequencial: 0.074000 <br>
 Tempo na versão paralela: 0.087000 <br>
  
 <b>Grafico</b><br>
-![Grafico](http://i.imgur.com/wKUwPzK.png)
+![Grafico](http://i.imgur.com/U0gZFqj.png)
+
