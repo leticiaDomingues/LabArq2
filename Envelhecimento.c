@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
 
     srand((unsigned)time(NULL)); // para valores randomicos
     
+	// leitura dos bytes do arquivo
     fscanf(fp, "%s\n", filetype);
     fprintf(fo, "%s%c", filetype, 10);
 
@@ -51,37 +52,37 @@ int main(int argc, char *argv[])
     start = clock();    
     for (i = 0; i < pixels; i++) 
     {
-        r = *ptri++; // nÃ£o pode ser int ou a conta nÃ£o funciona adequadamente e a conversÃ£o para char borra completamente a imagem
+        r = *ptri++; // le-se os 3 bytes do pixel no a ser analisado
         g = *ptri++;
         b = *ptri++;
-	   rn = rand() % 40;
+	   rn = rand() % 40; // gera um numero aleatorio para o ruido
                
        __asm {
                 movzx eax, r
                 movzx ebx, g
                 movzx ecx, b
 
-                xchg ecx, eax
+                xchg ecx, eax // troca r e b de lugar temporariamente, pois apenas o azul sera mudado
 
-		      mov esi, 3
-		      mul esi
-                shr eax, 2
+				mov esi, 3 // multiplica o azul por 3
+				mul esi
+                shr eax, 2 // divide o azul por quatro, resultando em azul * 0.75
 
-                xchg ecx, eax
+                xchg ecx, eax // troca r e b pros lugares certos de novo
                 
-		      cmp al, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
+				cmp al, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
                 jb skip1
                 sub eax, rn
 
-	skip1:	cmp bl, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
+	skip1:		cmp bl, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
                 jb skip2
                 sub ebx, rn
 
-	skip2:	cmp cl, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
+	skip2:		cmp cl, 50 // ignora valores muito baixos para não manchar a imagem com pontos pretos ou brancos
                 jb skip3
                 sub ecx, rn
 
-	skip3:  mov r, al
+	skip3:  	mov r, al
                 mov g, bl
                 mov b, cl
         }
